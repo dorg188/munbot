@@ -19,7 +19,6 @@ async def on_ready():
 
 def main():
     bot.load_extension('welcome')
-    bot.load_extension('flags')
     bot_process = multiprocessing.Process(target=bot.run, args=[TOKEN], name='MUNBot Process')
     bot_process.start()
     IPython.start_ipython(
