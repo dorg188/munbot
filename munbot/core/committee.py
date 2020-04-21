@@ -65,10 +65,10 @@ class Committee(object):
     async def initialize_committee(self):
         await self._create_committee_role()
         await self._create_committee_category()
+        self._initialized = True
         await self._create_committee_channels()
         await self.create_group('Chairs', [])
         await self._give_members_committee_role()
-        self._initialized = True
     
     async def create_group(self, group_id: str, group_members: typing.List[typing.Union[discord.User, discord.Member]]):
         if not self._initialized:
@@ -76,7 +76,6 @@ class Committee(object):
         channel_permissions = self._permissions.copy()
         channel_permissions.update({member: discord.PermissionOverwrite() for member in group_members})
         channel_permissions.update({member: discord.PermissionOverwrite() for member in self._chairs})
-        channel_permissions.update({member: discord.PermissionOverwrite() for member in self._admins})
         await self._category.create_text_channel(f'{self.name}-{group_id}', overwrites=channel_permissions)
         await self._category.create_voice_channel(f'{self.name}: {group_id}', overwrites=channel_permissions)
     
