@@ -1,7 +1,8 @@
 import enum
 
 
-class Roles(enum.Enum):
+class Roles(str, enum.Enum):
+    SecretaryGeneral = 'Secretary General'
     Advisor = 'Advisors'
     Chair = 'Chairs'
     Delegate = 'Delegates'
