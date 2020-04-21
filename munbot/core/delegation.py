@@ -16,5 +16,9 @@ class Delegation(object):
         return self._committee
     
     @property
+    def guild(self) -> discord.Guild:
+        return self._committee.guild
+    
+    @property
     def country(self):
         return self._country
