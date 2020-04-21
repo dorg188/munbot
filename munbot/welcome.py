@@ -1,6 +1,8 @@
 import contextlib
 
 import discord
+from munbot.core.conference import Conference
+from munbot.core.committee import Committee
 from discord.ext import commands
 
 
@@ -33,6 +35,12 @@ class Welcome(commands.Cog):
                        f'{num1} - {num2} = {num1 - num2}\n'
                        f'{num1} * {num2} = {num1 * num2}\n'
                        f'{num1} / {num2} = {num1 / num2}')
+    
+    @commands.command('committee')
+    async def create_new_committee_test(self, ctx: commands.Context, committee_name: str):
+        conf = Conference('', discord.utils.get(self.bot.guilds, name='vMUN'))
+        comm = Committee(conf, committee_name, [], [])
+        await comm.initialize_committee()
 
 
 def setup(bot: commands.Bot):
