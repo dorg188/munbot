@@ -2,6 +2,10 @@ import typing
 import discord
 from munbot.core.roles import Roles
 from munbot.core.conference import Conference
+from munbot.core.exceptions import InvalidCommitteeState, InvalidDelegation
+
+
+GENERAL = 'Floor'
 
 
 class Committee(object):
@@ -16,8 +20,13 @@ class Committee(object):
         self._observers = list(observers)
         self.topics = list(topics)
         self._delegations = dict()
+
         self._role: discord.Role
         self._category: discord.CategoryChannel
+        self._main_text_channel: discord.TextChannel
+        self._main_voice_channel: discord.VoiceChannel
+        self._group_text_channels: typing.List[discord.TextChannel] = []
+        self._group_voice_channels: typing.List[discord.VoiceChannel] = []
         self._permissions: dict = self._get_default_permissions()
         self._initialized = False
     
@@ -38,10 +47,13 @@ class Committee(object):
             category_permissions.update({self._role: discord.PermissionOverwrite()})
         self._category = await self.guild.create_category(name=self.name, overwrites=category_permissions)
     
-    async def _create_committee_channels(self):
+    async def _create_committee_text_channel(self):
         if self._category:
-            await self._category.create_text_channel(f'{self.name}-floor')
-            await self._category.create_voice_channel(f'{self.name}: Floor')
+            self._main_text_channel = await self._category.create_text_channel(f'{self.name}-{GENERAL}')
+    
+    async def _create_committee_voice_channel(self):
+        if self._category:
+            self._main_voice_channel = await self._category.create_voice_channel(f'{self.name}: {GENERAL}')
     
     async def _give_member_committee_role(self, member: typing.Union[discord.User, discord.Member]):
         if self._role and self._role not in member.roles():
@@ -62,22 +74,44 @@ class Committee(object):
             for delegate in delegation.delegates:
                 self._give_member_committee_role(delegate)
     
+    async def _remove_committee_role_from_members(self):
+        for chair in self._chairs:
+            self._remove_committee_role_from_member(chair)
+        for admin in self._admins:
+            self._remove_committee_role_from_member(admin)
+        for observer in self._observers:
+            self._remove_committee_role_from_member(observer)
+        for delegation in self._delegations:
+            for delegate in delegation.delegates:
+                self._remove_committee_role_from_member(delegate)
+    
     async def initialize_committee(self):
         await self._create_committee_role()
         await self._create_committee_category()
         self._initialized = True
-        await self._create_committee_channels()
+        await self._create_committee_text_channel()
+        await self._create_committee_voice_channel()
         await self.create_group('Chairs', [])
         await self._give_members_committee_role()
     
+    async def finalize_committee(self):
+        await self._remove_committee_role_from_members()
+        for channel in self._category.channels:
+            await channel.delete()
+        self._initialized = False
+        await self._category.delete()
+        await self._role.delete()
+
     async def create_group(self, group_id: str, group_members: typing.List[typing.Union[discord.User, discord.Member]]):
         if not self._initialized:
-            raise Exception('Committee not initialized!')
+            raise InvalidCommitteeState(f'Committee {self.name} is not yet established!')
         channel_permissions = self._permissions.copy()
         channel_permissions.update({member: discord.PermissionOverwrite() for member in group_members})
         channel_permissions.update({member: discord.PermissionOverwrite() for member in self._chairs})
-        await self._category.create_text_channel(f'{self.name}-{group_id}', overwrites=channel_permissions)
-        await self._category.create_voice_channel(f'{self.name}: {group_id}', overwrites=channel_permissions)
+        text_channel = await self._category.create_text_channel(f'{self.name}-{group_id}', overwrites=channel_permissions)
+        voice_channel = await self._category.create_voice_channel(f'{self.name}: {group_id}', overwrites=channel_permissions)
+        self._group_text_channels.append(text_channel)
+        self._group_voice_channels.append(voice_channel)
     
     @property
     def conference(self):
@@ -107,13 +141,26 @@ class Committee(object):
     def guild(self) -> discord.Guild:
         return self._conference.guild
     
+    @property
+    def main_text_channel(self) -> discord.TextChannel:
+        return self._main_text_channel
+    @property
+    def main_voice_channel(self) -> discord.VoiceChannel:
+        return self._main_voice_channel
+    @property
+    def group_text_channels(self) -> typing.Tuple[discord.TextChannel]:
+        return tuple(self._group_text_channels)
+    @property
+    def group_voice_channels(self) -> typing.Tuple[discord.VoiceChannel]:
+        return tuple(self._group_voice_channels)
+    
     async def add_delegation(self, delegation):
         if not delegation.country in self.delegations:
             self._delegations[delegation.country] = delegation
             for delegate in delegation.delegates:
                 await self._give_member_committee_role(delegate)
         else:
-            raise KeyError(f'A delegation from {delegation.country.name} is already registered!')
+            raise InvalidDelegation(f'A delegation from {delegation.country.name} is already registered!')
     
     async def add_delegations(self, delegations):
         for delegation in delegations:
@@ -125,7 +172,7 @@ class Committee(object):
             for delegate in delegation.delegates:
                 await self._remove_committee_role_from_member(delegate)
         else:
-            raise KeyError(f'A delegation from {country.name} is not registered!')
+            raise InvalidDelegation(f'A delegation from {country.name} was never registered to the {self.name} committee!')
     
     async def add_member(self, member: typing.Union[discord.User, discord.Member], role: Roles):
         if role == Roles.Admin:
