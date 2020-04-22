@@ -2,7 +2,7 @@ import typing
 import discord
 from munbot.core.roles import Roles
 from munbot.core.conference import Conference
-from munbot.core.exceptions import InvalidCommitteeState, InvalidDelegation
+from munbot.core.exceptions import InvalidCommitteeState, InvalidDelegation, InvalidGroupId
 
 
 GENERAL = 'Floor'
@@ -25,8 +25,10 @@ class Committee(object):
         self._category: discord.CategoryChannel
         self._main_text_channel: discord.TextChannel
         self._main_voice_channel: discord.VoiceChannel
-        self._group_text_channels: typing.List[discord.TextChannel] = []
-        self._group_voice_channels: typing.List[discord.VoiceChannel] = []
+        self._chairs_text_channel: discord.TextChannel
+        self._chairs_voice_channel: discord.VoiceChannel
+        self._group_text_channels: typing.Dict[str, discord.TextChannel] = dict()
+        self._group_voice_channels: typing.Dict[str, discord.VoiceChannel] = dict()
         self._permissions: dict = self._get_default_permissions()
         self._initialized = False
     
@@ -54,6 +56,23 @@ class Committee(object):
     async def _create_committee_voice_channel(self):
         if self._category:
             self._main_voice_channel = await self._category.create_voice_channel(f'{self.name}: {GENERAL}')
+    
+    def _register_text_channel(self, group_id: str, channel: discord.VoiceChannel):
+        self._group_text_channels[group_id] = channel
+    
+    def _register_voice_channel(self, group_id: str, channel: discord.VoiceChannel):
+        self._group_voice_channels[group_id] = channel
+    
+    async def _create_chat_group(self, group_id: str, group_members: typing.Iterable[typing.Union[discord.User, discord.Member]] = ()) -> typing.Tuple[discord.TextChannel, discord.VoiceChannel]:
+        if not self._initialized:
+            raise InvalidCommitteeState(f'Committee {self.name} is not yet established!')
+        channel_permissions = self._permissions.copy()
+        if group_members:
+            channel_permissions.update({member: discord.PermissionOverwrite() for member in group_members})
+        channel_permissions.update({member: discord.PermissionOverwrite() for member in self._chairs})  # Adds the chairs to every chat group
+        text_channel = await self._category.create_text_channel(f'{self.name}-{group_id}', overwrites=channel_permissions)
+        voice_channel = await self._category.create_voice_channel(f'{self.name}: {group_id}', overwrites=channel_permissions)
+        return text_channel, voice_channel
     
     async def _give_member_committee_role(self, member: typing.Union[discord.User, discord.Member]):
         if self._role and self._role not in member.roles():
@@ -91,7 +110,7 @@ class Committee(object):
         self._initialized = True
         await self._create_committee_text_channel()
         await self._create_committee_voice_channel()
-        await self.create_group('Chairs', [])
+        self._chairs_text_channel, self._chairs_voice_channel = await self._create_chat_group('Chairs')
         await self._give_members_committee_role()
     
     async def finalize_committee(self):
@@ -102,16 +121,17 @@ class Committee(object):
         await self._category.delete()
         await self._role.delete()
 
-    async def create_group(self, group_id: str, group_members: typing.List[typing.Union[discord.User, discord.Member]]):
-        if not self._initialized:
-            raise InvalidCommitteeState(f'Committee {self.name} is not yet established!')
-        channel_permissions = self._permissions.copy()
-        channel_permissions.update({member: discord.PermissionOverwrite() for member in group_members})
-        channel_permissions.update({member: discord.PermissionOverwrite() for member in self._chairs})
-        text_channel = await self._category.create_text_channel(f'{self.name}-{group_id}', overwrites=channel_permissions)
-        voice_channel = await self._category.create_voice_channel(f'{self.name}: {group_id}', overwrites=channel_permissions)
-        self._group_text_channels.append(text_channel)
-        self._group_voice_channels.append(voice_channel)
+    async def create_group(self, group_id: str, group_members: typing.Iterable[typing.Union[discord.User, discord.Member]]):
+        if group_id in self._group_text_channels or group_id in self._group_voice_channels:
+            raise InvalidGroupId(f'A {group_id} group already exists in the {self.name} committee!')
+        text_channel, voice_channel = await self._create_chat_group(group_id, group_members)
+        self._register_text_channel(group_id, text_channel)
+        self._register_voice_channel(group_id, voice_channel)
+    
+    def get_group_channels_by_id(self, group_id: str) -> typing.Tuple[discord.TextChannel, discord.VoiceChannel]:
+        if group_id not in self._group_text_channels and group_id not in self._group_voice_channels:
+            raise InvalidGroupId(f'A {group_id} group doesn\'t exist in the {self.name} committee!')
+        return self._group_text_channels.get(group_id, None), self._group_voice_channels.get(group_id, None)
     
     @property
     def conference(self):
@@ -135,7 +155,7 @@ class Committee(object):
     
     @property
     def delegations(self):
-        return self._delegations.values()
+        return tuple(self._delegations.values())
     
     @property
     def guild(self) -> discord.Guild:
@@ -144,15 +164,26 @@ class Committee(object):
     @property
     def main_text_channel(self) -> discord.TextChannel:
         return self._main_text_channel
+    
     @property
     def main_voice_channel(self) -> discord.VoiceChannel:
         return self._main_voice_channel
+    
+    @property
+    def chairs_text_channel(self) -> discord.TextChannel:
+        return self._chairs_text_channel
+    
+    @property
+    def chairs_voice_channel(self) -> discord.VoiceChannel:
+        return self._chairs_voice_channel
+    
     @property
     def group_text_channels(self) -> typing.Tuple[discord.TextChannel]:
-        return tuple(self._group_text_channels)
+        return tuple(self._group_text_channels.values())
+    
     @property
     def group_voice_channels(self) -> typing.Tuple[discord.VoiceChannel]:
-        return tuple(self._group_voice_channels)
+        return tuple(self._group_voice_channels.values())
     
     async def add_delegation(self, delegation):
         if not delegation.country in self.delegations:
