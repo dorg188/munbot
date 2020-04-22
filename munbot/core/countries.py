@@ -2,7 +2,7 @@
 import enum
 
 
-class Regoinals(enum.Enum):
+class Regoinals(str, enum.Enum):
     a = '\N{REGIONAL INDICATOR SYMBOL LETTER A}'
     b = '\N{REGIONAL INDICATOR SYMBOL LETTER B}'
     c = '\N{REGIONAL INDICATOR SYMBOL LETTER C}'
@@ -50,7 +50,7 @@ class Countries(enum.Enum):
         Returns:
             str: The emoji flag for the country
         """
-        return ''.join(getattr(Regoinals, letter).value for letter in self.value.lower())
+        return ''.join(getattr(Regoinals, letter) for letter in self.value.lower())
 
     Afghanistan = 'AF'
     ÅlandIslands = 'AX'
