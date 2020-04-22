@@ -1,9 +1,11 @@
+import sys
 import contextlib
 
 import discord
+from discord.ext import commands
 from munbot.core.conference import Conference
 from munbot.core.committee import Committee
-from discord.ext import commands
+from munbot.core.exceptions import MUNException
 
 
 committees = ['UNICEF', 'GA']
@@ -23,6 +25,13 @@ class Welcome(commands.Cog):
                 if after.mute:
                     await member.edit(mute=False)
     
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandInvokeError):
+        if isinstance(error.original, MUNException):
+            await ctx.send(f':x: {error.original}')
+        else:
+            raise error
+    
     @commands.command('whoami')
     async def whoami(self, ctx: commands.Context):
         await ctx.send(f':desktop: {ctx.guild.name}\n:hash: {ctx.channel.name}\n:smiley: {ctx.author.name}', delete_after=5)
@@ -36,11 +45,23 @@ class Welcome(commands.Cog):
                        f'{num1} * {num2} = {num1 * num2}\n'
                        f'{num1} / {num2} = {num1 / num2}')
     
-    @commands.command('committee')
+    @commands.command('conf')
+    async def create_conf_test(self, ctx: commands.Context, conference_name: str):
+        self.conf = Conference(conference_name, discord.utils.get(self.bot.guilds, name='vMUN'))
+        await ctx.send(f'The {conference_name} conference was created!')
+    
+    @commands.command('ccomm')
     async def create_new_committee_test(self, ctx: commands.Context, committee_name: str):
-        conf = Conference('', discord.utils.get(self.bot.guilds, name='vMUN'))
-        comm = Committee(conf, committee_name, [], [])
-        await comm.initialize_committee()
+        comm = Committee(self.conf, committee_name, [], [])
+        await self.conf.register_committee(comm)
+    
+    @commands.command('rcomm')
+    async def delete_committee_test(self, ctx: commands.Context, committee_name: str):
+        await self.conf.remove_committee(committee_name)
+    
+    @commands.command('error')
+    async def error_command_test(self, ctx: commands.Context):
+        raise ValueError('Some error!')
 
 
 def setup(bot: commands.Bot):
