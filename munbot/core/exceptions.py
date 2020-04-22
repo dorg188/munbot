@@ -12,3 +12,7 @@ class InvalidDelegation(MUNException):
 
 class InvalidCommitteeState(MUNException):
     pass
+
+
+class InvalidGroupId(MUNException):
+    pass
