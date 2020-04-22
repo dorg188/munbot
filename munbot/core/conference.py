@@ -15,7 +15,7 @@ class Conference(object):
     
     @property
     def committees(self):
-        return self._committees.values()
+        return tuple(self._committees.values())
     
     async def register_committee(self, committee):
         if not committee.name in self._committees:
