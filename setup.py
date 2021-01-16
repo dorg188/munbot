@@ -6,5 +6,8 @@ setup(
     author='Dor Genosar',
     author_email='dor.genosar@outlook.com',
     description='A bot that manages Model UN debates in discord servers',
-    install_requires=['discord.py', 'ipython', 'traitlets', 'python-dotenv']
+    install_requires=['discord.py', 'ipython', 'traitlets', 'python-dotenv'],
+    entry_points={
+        'console_scripts': ['munbot=munbot.main:main']
+    }
 )

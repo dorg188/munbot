@@ -12,6 +12,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 bot = discord.ext.commands.Bot(command_prefix='mun>')
 
+
 @bot.event
 async def on_ready():
     print('MUNBot ONLINE!')
@@ -19,7 +20,7 @@ async def on_ready():
 
 def main():
     bot.load_extension('welcome')
-    bot_process = multiprocessing.Process(target=bot.run, args=[TOKEN], name='MUNBot Process')
+    bot_process = multiprocessing.Process(target=bot.run, args=(TOKEN,), name='MUNBot Process')
     bot_process.start()
     IPython.start_ipython(
         user_ns={'bot': bot},
