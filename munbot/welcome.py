@@ -1,5 +1,8 @@
 import sys
 import contextlib
+import datetime
+import time
+import asyncio
 
 import discord
 from discord.ext import commands
@@ -12,9 +15,6 @@ committees = ['UNICEF', 'GA']
 
 
 class Welcome(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-    
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         if after and after.channel:
@@ -47,7 +47,7 @@ class Welcome(commands.Cog):
     
     @commands.command('conf')
     async def create_conf_test(self, ctx: commands.Context, conference_name: str):
-        self.conf = Conference(conference_name, discord.utils.get(self.bot.guilds, name='vMUN'))
+        self.conf = Conference(conference_name, ctx.guild)
         await ctx.send(f'The {conference_name} conference was created!')
     
     @commands.command('ccomm')
@@ -63,9 +63,36 @@ class Welcome(commands.Cog):
     async def error_command_test(self, ctx: commands.Context):
         raise ValueError('Some error!')
 
+    @commands.command('embed')
+    async def test_embeded_message(self, ctx: commands.Context):
+        async with ctx.typing():
+            embed = discord.Embed(title='Information', description='This is test for embeded messages')
+            embed.add_field(name='Time', value=datetime.datetime.now().isoformat(), inline=False)
+            embed.add_field(name='Epoch Time', value=time.time(), inline=False)
+            await ctx.send(embed=embed)
+            embed = discord.Embed(title='Information', description='This is test for embeded messages with inline fields',
+                                  color=discord.Color.blurple())
+            embed.add_field(name='Time', value=datetime.datetime.now().isoformat(), inline=True)
+            embed.add_field(name='Epoch Time', value=time.time(), inline=True)
+            await ctx.send(embed=embed)
+    
+    @commands.command('echo')
+    async def echo_in_dm(self, ctx: commands.Context):
+        if not ctx.author.dm_channel:
+            await ctx.author.create_dm()
+        await ctx.author.dm_channel.send(content=ctx.message.content[ctx.message.content.find(' '):],
+                                         files=[await attachment.to_file() for attachment in ctx.message.attachments])
+    
+    @commands.command('delay')
+    async def delayed_message(self, ctx: commands.Context, delay: int):
+        message = ctx.message.content[ctx.message.content.find(' ', ctx.message.content.find(' ') + 1):]
+        await ctx.send(f'Before: {message} {datetime.datetime.now().isoformat()}')
+        await asyncio.sleep(delay)
+        await ctx.send(f'After: {message} {datetime.datetime.now().isoformat()}')
+
 
 def setup(bot: commands.Bot):
-    bot.add_cog(Welcome(bot))
+    bot.add_cog(Welcome())
 
 
 def teardown(bot: commands.Bot):

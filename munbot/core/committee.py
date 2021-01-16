@@ -1,4 +1,6 @@
 import typing
+import enum
+
 import discord
 from munbot.core.roles import Roles
 from munbot.core.conference import Conference
@@ -6,6 +8,32 @@ from munbot.core.exceptions import InvalidCommitteeState, InvalidDelegation, Inv
 
 
 GENERAL = 'Floor'
+
+
+class CommitteeStatus(enum.Enum):
+    Pending = 'Pending'
+    RollCall = 'Roll Call'
+    OpenFloor = 'Floor: Open to Motions'
+    OpeningSpeeches = 'Presenting: Opening Speeches'
+    SpeakersList = 'General Speakers\' List'
+    ModaratedCaucus = 'Moderated Caucus'
+    UnmoderatedCaucus = LobbyingTime = 'Unmoderated Caucus / Lobbying Time'
+    PresentingClauses = 'Presenting: Clauses'
+    TimeForClauses = 'Time For: Clauses'
+    TimeAgainstClauses = 'Time Against: Clauses'
+    PresentingAmendment = 'Presenting: Amendments'
+    TimeForAmendments = 'Time For: Amendments'
+    TimeAgainstAmendments = 'Time Against: Amendments'
+    AmendmentVoting = 'Voting Precedure: Amendments'
+    AmendmentRollCallVote = 'Roll Call Vote: Amendments'
+    ClausesVoting = 'Voting Precedure: Clauses'
+    ClausesRollCallVote = 'Roll Call Vote: Clauses'
+    ResolutionVoting = 'Voting Precedure: Resolution'
+    ResolutionRollCallVote = 'Roll Call Vote: Resolution'
+    VotingPrecedure = 'Voting Precedure'
+    RollCallVote = 'Roll Call Vote'
+    Break = 'On Break'
+    Closed = 'Committee Closed'
 
 
 class Committee(object):
@@ -34,9 +62,8 @@ class Committee(object):
     
     def _get_default_permissions(self) -> dict:
         return {
-            self.guild.default_role: discord.PermissionOverwrite.from_pair(discord.Permissions.none(),
-                                                                           discord.Permissions.all()),
             discord.utils.get(self.guild.roles, name=Roles.Advisor): discord.PermissionOverwrite(),
+            discord.utils.get(self.guild.roles, name=Roles.VIP): discord.PermissionOverwrite(),
             discord.utils.get(self.guild.roles, name=Roles.SecretaryGeneral): discord.PermissionOverwrite()
         }
     
@@ -46,7 +73,9 @@ class Committee(object):
     async def _create_committee_category(self):
         category_permissions = self._permissions.copy()
         if self._role:
-            category_permissions.update({self._role: discord.PermissionOverwrite()})
+            category_permissions.update({self._role: discord.PermissionOverwrite(),
+                                         discord.utils.get(self.guild.roles, name=Roles.Chair): discord.PermissionOverwrite(manage_channels=True),
+                                         discord.utils.get(self.guild.roles, name=Roles.Admin): discord.PermissionOverwrite(manage_channels=True)})
         self._category = await self.guild.create_category(name=self.name, overwrites=category_permissions)
     
     async def _create_committee_text_channel(self):
@@ -57,7 +86,7 @@ class Committee(object):
         if self._category:
             self._main_voice_channel = await self._category.create_voice_channel(f'{self.name}: {GENERAL}')
     
-    def _register_text_channel(self, group_id: str, channel: discord.VoiceChannel):
+    def _register_text_channel(self, group_id: str, channel: discord.TextChannel):
         self._group_text_channels[group_id] = channel
     
     def _register_voice_channel(self, group_id: str, channel: discord.VoiceChannel):
@@ -110,7 +139,7 @@ class Committee(object):
         self._initialized = True
         await self._create_committee_text_channel()
         await self._create_committee_voice_channel()
-        self._chairs_text_channel, self._chairs_voice_channel = await self._create_chat_group('Chairs')
+        self._chairs_text_channel, self._chairs_voice_channel = await self._create_chat_group('Chairs', self._admins)
         await self._give_members_committee_role()
     
     async def finalize_committee(self):

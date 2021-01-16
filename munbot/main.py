@@ -10,7 +10,7 @@ from traitlets.config.loader import Config
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-bot = discord.ext.commands.Bot(command_prefix='%')
+bot = discord.ext.commands.Bot(command_prefix='mun>')
 
 @bot.event
 async def on_ready():

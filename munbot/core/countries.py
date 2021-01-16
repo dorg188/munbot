@@ -1,5 +1,6 @@
 # coding=utf8
 import enum
+import re
 
 
 class Regoinals(str, enum.Enum):
@@ -45,12 +46,15 @@ class Countries(enum.Enum):
         """
         return getattr(Countries, ''.join(word.capitalize() for word in country_name.split(' ')))
 
-    def get_flag(self):
+    def get_flag(self) -> str:
         """
         Returns:
             str: The emoji flag for the country
         """
         return ''.join(getattr(Regoinals, letter) for letter in self.value.lower())
+
+    def get_country_name(self) -> str:
+        return re.sub(r'([a-z])([A-Z])', r'\1 \2', self.name)
 
     Afghanistan = 'AF'
     ÅlandIslands = 'AX'
