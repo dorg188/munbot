@@ -1,11 +1,9 @@
 import os
-import signal
+import asyncio
 import logging
 import discord.ext.commands
 from dotenv import load_dotenv
-import multiprocessing
-import IPython
-from traitlets.config.loader import Config
+import atexit
 
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
@@ -19,15 +17,9 @@ async def on_ready():
 
 
 def main():
-    bot.load_extension('welcome')
-    bot_process = multiprocessing.Process(target=bot.run, args=(TOKEN,), name='MUNBot Process')
-    bot_process.start()
-    IPython.start_ipython(
-        user_ns={'bot': bot},
-        config=Config(TerminalInteractiveShell={'banner1': 'MUNBot Interactive'})
-    )
-    os.kill(bot_process.pid, signal.SIGINT)
-    bot_process.join()
+    atexit.register(lambda: asyncio.run(bot.close()))
+    bot.load_extension('munbot.welcome')
+    bot.run(TOKEN)
 
 
 if __name__ == "__main__":

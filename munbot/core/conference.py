@@ -18,7 +18,7 @@ class Conference(object):
         return tuple(self._committees.values())
     
     async def register_committee(self, committee):
-        if not committee.name in self._committees:
+        if committee.name not in self._committees:
             self._committees[committee.name] = committee
             await committee.initialize_committee()
         else:

@@ -13,23 +13,23 @@ GENERAL = 'Floor'
 class CommitteeStatus(enum.Enum):
     Pending = 'Pending'
     RollCall = 'Roll Call'
-    OpenFloor = 'Floor: Open to Motions'
-    OpeningSpeeches = 'Presenting: Opening Speeches'
-    SpeakersList = 'General Speakers\' List'
+    OpenFloor = 'Open to Motions'
+    OpeningSpeeches = 'Presenting - Opening Speeches'
+    SpeakersList = 'General Speakers List'
     ModaratedCaucus = 'Moderated Caucus'
     UnmoderatedCaucus = LobbyingTime = 'Unmoderated Caucus / Lobbying Time'
     PresentingClauses = 'Presenting: Clauses'
-    TimeForClauses = 'Time For: Clauses'
-    TimeAgainstClauses = 'Time Against: Clauses'
-    PresentingAmendment = 'Presenting: Amendments'
-    TimeForAmendments = 'Time For: Amendments'
-    TimeAgainstAmendments = 'Time Against: Amendments'
-    AmendmentVoting = 'Voting Precedure: Amendments'
-    AmendmentRollCallVote = 'Roll Call Vote: Amendments'
-    ClausesVoting = 'Voting Precedure: Clauses'
-    ClausesRollCallVote = 'Roll Call Vote: Clauses'
-    ResolutionVoting = 'Voting Precedure: Resolution'
-    ResolutionRollCallVote = 'Roll Call Vote: Resolution'
+    TimeForClauses = 'Time For - Clauses'
+    TimeAgainstClauses = 'Time Against - Clauses'
+    PresentingAmendment = 'Presenting - Amendments'
+    TimeForAmendments = 'Time For - Amendments'
+    TimeAgainstAmendments = 'Time Against - Amendments'
+    AmendmentVoting = 'Voting Precedure - Amendments'
+    AmendmentRollCallVote = 'Roll Call Vote - Amendments'
+    ClausesVoting = 'Voting Precedure - Clauses'
+    ClausesRollCallVote = 'Roll Call Vote - Clauses'
+    ResolutionVoting = 'Voting Precedure - Resolution'
+    ResolutionRollCallVote = 'Roll Call Vote - Resolution'
     VotingPrecedure = 'Voting Precedure'
     RollCallVote = 'Roll Call Vote'
     Break = 'On Break'
@@ -48,11 +48,12 @@ class Committee(object):
         self._observers = list(observers)
         self.topics = list(topics)
         self._delegations = dict()
+        self._status = CommitteeStatus.Pending
 
         self._role: discord.Role
         self._category: discord.CategoryChannel
         self._main_text_channel: discord.TextChannel
-        self._main_voice_channel: discord.VoiceChannel
+        self._main_voice_channel: discord.StageChannel
         self._chairs_text_channel: discord.TextChannel
         self._chairs_voice_channel: discord.VoiceChannel
         self._group_text_channels: typing.Dict[str, discord.TextChannel] = dict()
@@ -84,7 +85,7 @@ class Committee(object):
     
     async def _create_committee_voice_channel(self):
         if self._category:
-            self._main_voice_channel = await self._category.create_voice_channel(f'{self.name}: {GENERAL}')
+            self._main_voice_channel = await self._category.create_stage_channel(f'{self.name}: {GENERAL}')
     
     def _register_text_channel(self, group_id: str, channel: discord.TextChannel):
         self._group_text_channels[group_id] = channel
@@ -113,25 +114,25 @@ class Committee(object):
     
     async def _give_members_committee_role(self):
         for chair in self._chairs:
-            self._give_member_committee_role(chair)
+            await self._give_member_committee_role(chair)
         for admin in self._admins:
-            self._give_member_committee_role(admin)
+            await self._give_member_committee_role(admin)
         for observer in self._observers:
-            self._give_member_committee_role(observer)
+            await self._give_member_committee_role(observer)
         for delegation in self._delegations:
             for delegate in delegation.delegates:
-                self._give_member_committee_role(delegate)
+                await self._give_member_committee_role(delegate)
     
     async def _remove_committee_role_from_members(self):
         for chair in self._chairs:
-            self._remove_committee_role_from_member(chair)
+            await self._remove_committee_role_from_member(chair)
         for admin in self._admins:
-            self._remove_committee_role_from_member(admin)
+            await self._remove_committee_role_from_member(admin)
         for observer in self._observers:
-            self._remove_committee_role_from_member(observer)
+            await self._remove_committee_role_from_member(observer)
         for delegation in self._delegations:
             for delegate in delegation.delegates:
-                self._remove_committee_role_from_member(delegate)
+                await self._remove_committee_role_from_member(delegate)
     
     async def initialize_committee(self):
         await self._create_committee_role()
@@ -169,6 +170,10 @@ class Committee(object):
     @property
     def name(self):
         return self._name
+    
+    @property
+    def status(self):
+        return self._status
     
     @property
     def chairs(self):
@@ -215,7 +220,7 @@ class Committee(object):
         return tuple(self._group_voice_channels.values())
     
     async def add_delegation(self, delegation):
-        if not delegation.country in self.delegations:
+        if delegation.country not in self.delegations:
             self._delegations[delegation.country] = delegation
             for delegate in delegation.delegates:
                 await self._give_member_committee_role(delegate)

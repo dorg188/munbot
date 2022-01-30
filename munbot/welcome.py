@@ -37,6 +37,10 @@ class Welcome(commands.Cog):
         await ctx.send(f':desktop: {ctx.guild.name}\n:hash: {ctx.channel.name}\n:smiley: {ctx.author.name}', delete_after=5)
         await ctx.message.delete()
     
+    @commands.command('users')
+    async def users(self, ctx: commands.Context):
+        await ctx.send(f'{ctx.author.id}')
+    
     @commands.command('calc')
     async def calculate(self, ctx: commands.Context, num1: int, num2: int):
         await ctx.send(f'Results:\n'

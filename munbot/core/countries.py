@@ -33,8 +33,8 @@ class Regoinals(str, enum.Enum):
 
 
 class Countries(enum.Enum):
-    @staticmethod
-    def get_country(country_name: str):
+    @classmethod
+    def get_country(cls, country_name: str):
         """
         Get a country by its name
 
@@ -44,7 +44,7 @@ class Countries(enum.Enum):
         Returns:
             Countries: The enum representation of the requested country, if one exists
         """
-        return getattr(Countries, ''.join(word.capitalize() for word in country_name.split(' ')))
+        return getattr(cls, ''.join(word.capitalize() for word in country_name.split(' ')))
 
     def get_flag(self) -> str:
         """
@@ -54,7 +54,7 @@ class Countries(enum.Enum):
         return ''.join(getattr(Regoinals, letter) for letter in self.value.lower())
 
     def get_country_name(self) -> str:
-        return re.sub(r'([a-z])([A-Z])', r'\1 \2', self.name)
+        return re.sub(r'([a-z])([A-Z])', r'\1 \2', self.name, flags=re.UNICODE)
 
     Afghanistan = 'AF'
     ÅlandIslands = 'AX'
